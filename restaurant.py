@@ -5,23 +5,7 @@ from datetime import datetime
 import pandas as pd
 
 # Load configuration from JSON file
-def load_config(file_path):
-    """Load configuration from a JSON file."""
-    with open(file_path, 'r') as f:
-        config = json.load(f)
-    return config
 
-# Load API key
-config = load_config('config.json')
-gemini_api_key = config.get("GEMINI_API_KEY")
-
-if not gemini_api_key:
-    raise ValueError("API key not found in configuration file. Please check your config.json file.")
-
-# Configure genai with API key
-import google.generativeai as genai
-genai.configure(api_key=gemini_api_key)
-model = genai.GenerativeModel('gemini-pro')
 
 def get_gemini_response(prompt):
     """Get a response from the Gemini model."""
