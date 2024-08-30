@@ -1,8 +1,8 @@
 import streamlit as st
+import sqlite3
 import json
-import pandas as pd
-import google.generativeai as genai
 from datetime import datetime
+import pandas as pd
 
 # Load configuration from JSON file
 def load_config(file_path):
@@ -19,6 +19,7 @@ if not gemini_api_key:
     raise ValueError("API key not found in configuration file. Please check your config.json file.")
 
 # Configure genai with API key
+import google.generativeai as genai
 genai.configure(api_key=gemini_api_key)
 model = genai.GenerativeModel('gemini-pro')
 
@@ -46,15 +47,43 @@ if "reservation_details" not in st.session_state:
     }
     st.session_state.current_step = "start"
 
-# Function to save reservation to Excel
+# Initialize SQLite database
+def init_db():
+    conn = sqlite3.connect('reservations.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        CREATE TABLE IF NOT EXISTS reservations (
+            id INTEGER PRIMARY KEY AUTOINCREMENT,
+            name TEXT,
+            phone TEXT,
+            email TEXT,
+            guests TEXT,
+            baby_seats TEXT,
+            date TEXT,
+            time TEXT
+        )
+    ''')
+    conn.commit()
+    conn.close()
+
+# Save reservation to SQLite
 def save_reservation():
-    df = pd.DataFrame([st.session_state.reservation_details])
-    try:
-        existing_df = pd.read_excel("reservations.xlsx")
-        df = pd.concat([existing_df, df], ignore_index=True)
-    except FileNotFoundError:
-        pass
-    df.to_excel("reservations.xlsx", index=False)
+    conn = sqlite3.connect('reservations.db')
+    cursor = conn.cursor()
+    cursor.execute('''
+        INSERT INTO reservations (name, phone, email, guests, baby_seats, date, time)
+        VALUES (?, ?, ?, ?, ?, ?, ?)
+    ''', (
+        st.session_state.reservation_details["name"],
+        st.session_state.reservation_details["phone"],
+        st.session_state.reservation_details["email"],
+        st.session_state.reservation_details["guests"],
+        st.session_state.reservation_details["baby_seats"],
+        st.session_state.reservation_details["date"],
+        st.session_state.reservation_details["time"]
+    ))
+    conn.commit()
+    conn.close()
     st.success("Reservation saved!")
 
 # Function to reset state for new reservation
@@ -71,12 +100,15 @@ def reset_reservation():
     st.session_state.current_step = "start"
     st.session_state.messages = []
 
+# Initialize database
+init_db()
+
 # Streamlit app
 st.title("Restaurant Reservation Chatbot")
 
 # Sidebar navigation
 st.sidebar.title("Navigation")
-selection = st.sidebar.radio("Go to", ["Home", "Reservation", "Menu"])
+selection = st.sidebar.radio("Go to", ["Home", "Reservation", "Menu", "View Reservations"])
 
 if selection == "Home":
     reset_reservation()
@@ -129,7 +161,7 @@ elif selection == "Reservation":
         elif st.session_state.current_step == "date":
             try:
                 # Check if input is a valid date
-                
+                datetime.strptime(user_input, '%Y-%m-%d')
                 st.session_state.reservation_details["date"] = user_input
                 st.session_state.messages.append({"role": "assistant", "content": "Got it. What time would you like the reservation for?"})
                 st.session_state.current_step = "time"
@@ -139,7 +171,7 @@ elif selection == "Reservation":
         elif st.session_state.current_step == "time":
             try:
                 # Check if input is a valid time
-                
+                datetime.strptime(user_input, '%H:%M')
                 st.session_state.reservation_details["time"] = user_input
                 save_reservation()
                 st.session_state.messages.append({"role": "assistant", "content": "Your reservation has been confirmed! If you need anything else, just let me know."})
@@ -162,6 +194,17 @@ elif selection == "Menu":
     st.write("4. **Beverages**: Coffee, Tea, Soft Drinks")
 
     st.write("If you have any specific questions about the menu or need recommendations, feel free to ask!")
+
+elif selection == "View Reservations":
+    conn = sqlite3.connect('reservations.db')
+    df = pd.read_sql_query("SELECT * FROM reservations", conn)
+    conn.close()
+    
+    if not df.empty:
+        st.write("### Reservation Details")
+        st.dataframe(df)
+    else:
+        st.write("No reservations found.")
 
 # Optional: Button to reset reservation state
 if st.sidebar.button("Reset Reservation"):
