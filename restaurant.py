@@ -115,7 +115,7 @@ elif selection == "Reservation":
                 st.session_state.messages.append({"role": "assistant", "content": "Sure, I'd be happy to help with your reservation. First, can I have your name?"})
                 st.session_state.current_step = "name"
             else:
-                st.session_state.messages.append({"role": "assistant", "content":  "hi,my name is Dani. I am the assistant of fast food restuarant.and I am here to collect the reservation details. Do want to reserve table in our restaurant?"})
+                st.session_state.messages.append({"role": "assistant", "content":  "hi,my name is Dani. I am the assistant of fast food restuarant.and I am here to collect the reservation details. Do you want to reserve table in our restaurant?"})
         
         elif st.session_state.current_step == "name":
             st.session_state.reservation_details["name"] = user_input
